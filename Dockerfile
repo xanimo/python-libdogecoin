@@ -12,6 +12,6 @@ RUN python3 -m pip install requests cython
 RUN ./build.sh --host=$TARGET_HOST --docker
 
 FROM scratch as artifact
-COPY --from=build /work/src/wheels ./wheels
+COPY --from=build /work/wheels ./wheels
 
 FROM release

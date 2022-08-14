@@ -132,7 +132,9 @@ dmypy.json
 
 # libdogecoin archives
 src/libdogecoin-*
-build-log.txt
 src/include
 src/include/
 src/libdogecoin.c
+
+# Docker stuff
+logs/

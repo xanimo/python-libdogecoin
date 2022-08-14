@@ -21,6 +21,7 @@ assert host in ("arm-linux-gnueabihf",
                 "x86_64-w64-mingw32",
                 "i686-w64-mingw32",
                 "i686-pc-linux-gnu",), "Invalid architecture."
+
 def combine(arch):
     print(arch)
     libs = ["libgcc.a", "libmoldname.a", "libmsvcrt.a", "libadvapi32.a", "libmingwex.a"]

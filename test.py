@@ -4,18 +4,20 @@ import os
 import subprocess
 import glob
 
+slash = ""
 target_wheel = ""
 target_path = ""
 print(os.getcwd())
 
 if os.name == "nt":
-    target_path = os.getcwd() + "\dist\*.whl"
+    slash = "\\"
 else:
-    target_path = os.getcwd() + "/dist/*.whl"
+    slash = "/"
 
+target_path = os.getcwd() + slash + "**" + slash + "*.whl"
 print(target_path)
 
-for name in glob.glob(target_path):
+for name in glob.glob(target_path, recursive=True):
     if os.path.isfile(name):
         target_wheel = name
 

@@ -43,6 +43,16 @@ check_tools() {
     done
 }
 
+config_wslu() {
+    if [ "$OS" == "windows" ]; then
+        $USE_SUDO apt install gnupg2 apt-transport-https
+        wget -O - https://pkg.wslutiliti.es/public.key | $USE_SUDO tee -a /etc/apt/trusted.gpg.d/wslu.asc
+
+        # Debian 11
+        echo "deb https://pkg.wslutiliti.es/debian bullseye main" | $USE_SUDO sudo tee -a /etc/apt/sources.list
+    fi
+}
+
 TAG=""
 OS=""
 ARCH=""
@@ -59,7 +69,7 @@ case $i in
             "arm-linux-gnueabihf")
                 OS=linux
                 ARCH=armv7l
-                ML=linux_armv7l
+                ML=manylinux_2_17_$ARCH
                 ARCH_PACKAGES+="g++-arm-linux-gnueabihf "
                 ARCH_PACKAGES+="qemu-user-static qemu-user"
                 TARGET_ARCH="armhf"
@@ -67,44 +77,43 @@ case $i in
             "aarch64-linux-gnu")
                 OS=linux
                 ARCH=aarch64
-                ML=manylinux2014_aarch64
+                ML=manylinux_2_17_$ARCH
                 ARCH_PACKAGES+="g++-aarch64-linux-gnu "
                 ARCH_PACKAGES+="qemu-user-static qemu-user"
                 TARGET_ARCH="arm64"
             ;;
             "x86_64-w64-mingw32")
+                OS=windows
                 ARCH=x86_64
-                ML=manylinux2014_x86_64
-                ARCH_PACKAGES+="g++-mingw-w64 "
+                ML=manylinux_2_17_$ARCH
+                ARCH_PACKAGES+="g++-mingw-w64 wslu"
                 TARGET_ARCH="amd64"
                 plat=win-amd64
             ;;
             "i686-w64-mingw32")
+                OS=windows
                 ARCH=x86
-                ML=manylinux2014_i686
-                ARCH_PACKAGES+="g++-mingw-w64 "
                 TARGET_ARCH="i386"
+                ML=manylinux_2_17_$TARGET_ARCH
+                ARCH_PACKAGES+="g++-mingw-w64 wslu"
                 plat=win32
             ;;
             "x86_64-apple-darwin14")
                 OS=macos
                 ARCH=x86_64
-                ML=manylinux2014_x86_64
+                ML=manylinux_2_17_x86_64
             ;;
             "x86_64-pc-linux-gnu")
                 OS=linux
                 ARCH=x86_64
-                ML="manylinux2014_x86_64"
+                ML=manylinux_2_17_$ARCH
             ;;
             "i686-pc-linux-gnu")
                 OS=linux
                 ARCH=i686
-                ML=manylinux2014_i686
+                ML=manylinux_2_17_$ARCH
                 ARCH_PACKAGES+="g++-multilib "
                 TARGET_ARCH="i386"
-            ;;
-            "all")
-                ALL_HOST_TRIPLETS=("x86_64-pc-linux-gnu" "i686-pc-linux-gnu" "aarch64-linux-gnu" "arm-linux-gnueabihf" "x86_64-apple-darwin14" "x86_64-w64-mingw32" "i686-w64-mingw32")
             ;;
             *)
                 ERROR=1
@@ -120,6 +129,8 @@ case $i in
     -t=*|--tag=*)
         TAG="${i#*=}"
     ;;
+    --docker)
+    ;;
     *)
         ERROR=1
     ;;
@@ -131,6 +142,7 @@ if [ "$ERROR" ]; then
     exit $ERROR
 fi
 
+config_wslu
 check_tools python3 python-is-python3 python3-venv curl tar unzip gpg patchelf $ARCH_PACKAGES
 
 if [ ! "$TAG" ]; then
@@ -226,7 +238,9 @@ pushd src
         -C--global-option=--tag-build=0.1.0 -w
         TARGET_WHEEL=$(find . -maxdepth 2 -type f -regex ".*libdogecoin-.*.whl")
         echo $TARGET_WHEEL
-        auditwheel repair --plat $ML $TARGET_WHEEL -w ../wheels
+        if [ "$OS" == "linux" ]; then
+            auditwheel repair --plat $ML $TARGET_WHEEL -w ../wheels
+        fi
     fi
 
     if [ "$TARGET_HOST_TRIPLET" == "x86_64-w64-mingw32" ] || [ "$TARGET_HOST_TRIPLET" == "i686-w64-mingw32" ]; then

@@ -7,7 +7,45 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-FLAVOR=""
+config_env() {
+    case "$TARGET_HOST_TRIPLET" in
+        "arm-linux-gnueabihf")
+            OS=linux
+            TARGET_ARCH="arm32v7"
+        ;;
+        "aarch64-linux-gnu")
+            OS=linux
+            TARGET_ARCH="arm64v8"
+        ;;
+        "x86_64-w64-mingw32")
+            OS=linux
+            TARGET_ARCH="amd64"
+        ;;
+        "i686-w64-mingw32")
+            OS=linux
+            TARGET_ARCH="i386"
+        ;;
+        "x86_64-apple-darwin14")
+            OS=darwin
+            TARGET_ARCH="amd64"
+        ;;
+        "x86_64-pc-linux-gnu")
+            OS=linux
+            TARGET_ARCH="amd64"
+        ;;
+        "i686-pc-linux-gnu")
+            OS=linux
+            TARGET_ARCH="i386"
+        ;;
+        "all")
+            ALL_HOST_TRIPLETS=("x86_64-pc-linux-gnu" "i686-pc-linux-gnu" "aarch64-linux-gnu" "arm-linux-gnueabihf" "x86_64-w64-mingw32" "i686-w64-mingw32")
+        ;;
+        *)
+            ERROR=1
+        ;;
+    esac
+}
+
 ALL_HOST_TRIPLETS=""
 TARGET_HOST_TRIPLET=""
 for i in "$@"
@@ -16,39 +54,7 @@ case $i in
     -h=*|--host=*)
         HOST="${i#*=}"
         TARGET_HOST_TRIPLET=($HOST)
-        case "$TARGET_HOST_TRIPLET" in
-            "arm-linux-gnueabihf")
-                OS=linux
-                TARGET_ARCH="arm32v7"
-            ;;
-            "aarch64-linux-gnu")
-                OS=linux
-                TARGET_ARCH="arm64v8"
-            ;;
-            "x86_64-w64-mingw32")
-                OS=linux
-                TARGET_ARCH="amd64"
-            ;;
-            "i686-w64-mingw32")
-                OS=linux
-                TARGET_ARCH="i386"
-            ;;
-            "x86_64-apple-darwin14")
-                OS=darwin
-                TARGET_ARCH="amd64"
-            ;;
-            "x86_64-pc-linux-gnu")
-                OS=linux
-                TARGET_ARCH="amd64"
-            ;;
-            "i686-pc-linux-gnu")
-                OS=linux
-                TARGET_ARCH="i386"
-            ;;
-            *)
-                ERROR=1
-            ;;
-        esac
+        config_env
     ;;
     *)
         ERROR=1
@@ -61,10 +67,33 @@ if [ "$ERROR" ]; then
     exit $ERROR
 fi
 
-docker buildx build \
--t xanimo/python-libdogecoin:$TARGET_ARCH \
---build-arg FLAVOR=${FLAVOR:-"bullseye"} \
---build-arg ARCH=$TARGET_ARCH \
---build-arg TARGET_HOST=$TARGET_HOST_TRIPLET \
---target artifact \
---output type=local,dest=. .
+build() {
+    # if [ ! -f "$PWD/logs/$TARGET_HOST_TRIPLET-build-log.txt" ]; then
+    #     touch $PWD/logs/$TARGET_HOST_TRIPLET-build-log.txt
+    # fi
+
+    docker buildx build \
+    -t xanimo/python-libdogecoin:$TARGET_ARCH \
+    --build-arg FLAVOR=${FLAVOR:-"bullseye"} \
+    --build-arg ARCH=$TARGET_ARCH \
+    --build-arg TARGET_HOST=$TARGET_HOST_TRIPLET \
+    --target artifact \
+    --output type=local,dest=. .
+    #  \
+    # 2> $PWD/logs/$TARGET_HOST_TRIPLET-build-log.txt \
+    # > >(tail -f $PWD/logs/$TARGET_HOST_TRIPLET-build-log.txt)
+}
+
+if [[ "$ALL_HOST_TRIPLETS" != "" ]]; then
+    END=$((${#ALL_HOST_TRIPLETS[@]} - 1))
+    for i in "${!ALL_HOST_TRIPLETS[@]}"
+    do
+    :
+        TARGET_HOST_TRIPLET="${ALL_HOST_TRIPLETS[$i]}"
+        config_env
+        build
+    done
+else
+        config_env
+        build 
+fi
