@@ -43,16 +43,6 @@ check_tools() {
     done
 }
 
-config_wslu() {
-    if [ "$OS" == "windows" ]; then
-        $USE_SUDO apt install gnupg2 apt-transport-https
-        wget -O - https://pkg.wslutiliti.es/public.key | $USE_SUDO tee -a /etc/apt/trusted.gpg.d/wslu.asc
-
-        # Debian 11
-        echo "deb https://pkg.wslutiliti.es/debian bullseye main" | $USE_SUDO sudo tee -a /etc/apt/sources.list
-    fi
-}
-
 TAG=""
 OS=""
 ARCH=""
@@ -86,16 +76,16 @@ case $i in
                 OS=windows
                 ARCH=x86_64
                 ML=manylinux_2_17_$ARCH
-                ARCH_PACKAGES+="g++-mingw-w64 wslu"
+                ARCH_PACKAGES+="g++-mingw-w64 wine wine64"
                 TARGET_ARCH="amd64"
-                plat=win-amd64
+                plat=amd64
             ;;
             "i686-w64-mingw32")
                 OS=windows
                 ARCH=x86
                 TARGET_ARCH="i386"
                 ML=manylinux_2_17_$TARGET_ARCH
-                ARCH_PACKAGES+="g++-mingw-w64 wslu"
+                ARCH_PACKAGES+="g++-mingw-w64 wine wine64"
                 plat=win32
             ;;
             "x86_64-apple-darwin14")
@@ -142,7 +132,6 @@ if [ "$ERROR" ]; then
     exit $ERROR
 fi
 
-config_wslu
 check_tools python3 python-is-python3 python3-venv curl tar unzip gpg patchelf $ARCH_PACKAGES
 
 if [ ! "$TAG" ]; then
@@ -159,107 +148,68 @@ CHECKSUMS="SHA256SUMS.asc"
 URL=https://github.com/dogecoinfoundation/libdogecoin/releases/download/v0.1.0/
 
 
-pushd src
-    if [[ "$ALL_HOST_TRIPLETS" != "" ]]; then
-        END=$((${#ALL_HOST_TRIPLETS[@]} - 1))
-        curl -L -O $URL$CHECKSUMS
-        curl https://raw.githubusercontent.com/dogecoinfoundation/libdogecoin/main/contrib/signing-keys/xanimo-key.pgp | gpg --import
-        check_sig $CHECKSUMS
-        for i in "${!ALL_HOST_TRIPLETS[@]}"
-        do
-        :
-            TARGET_HOST_TRIPLET="${ALL_HOST_TRIPLETS[$i]}"
-            BUILD_PREFIX="`pwd`/lib"
-            echo $BUILD_PREFIX
-            SIG_STATUS=""
-            if [ ! -d "$BUILD_PREFIX" ]; then
-                mkdir -p $BUILD_PREFIX
-            fi
-            if [ ! -d "include" ]; then
-                mkdir -p include
-            fi
-            if [[ "$TARGET_HOST_TRIPLET" == *-mingw32 ]]; then
-                EXTENSION=".zip"
-                ARCHIVE="$FILE$TARGET_HOST_TRIPLET$EXTENSION"
-                curl -L -O "$URL$ARCHIVE"
-                SIG_STATUS=$(grep "$ARCHIVE" "$CHECKSUMS" | sha256sum -c | grep OK)
-                if [ "$SIG_STATUS" == "$ARCHIVE: OK" ]; then
-                    printf "$green> checksum looks good$reset\n"
-                else
-                    printf "$red> checksum for this libdogecoin release is invalid! This is BAD and may mean the release has been tampered with. It is strongly recommended that you report this to the libdogecoin developers.$reset\n"
-                    exit 1;
-                fi
-                unzip -o -j "$FILE$TARGET_HOST_TRIPLET$EXTENSION" "$FILE$TARGET_HOST_TRIPLET/lib/libdogecoin.a"  -d lib
-                unzip -o -j "$FILE$TARGET_HOST_TRIPLET$EXTENSION"  "$FILE$TARGET_HOST_TRIPLET/include/libdogecoin.h" -d include
-                rm $ARCHIVE
+if [[ "$ALL_HOST_TRIPLETS" != "" ]]; then
+    END=$((${#ALL_HOST_TRIPLETS[@]} - 1))
+    curl -L -O $URL$CHECKSUMS
+    curl https://raw.githubusercontent.com/dogecoinfoundation/libdogecoin/main/contrib/signing-keys/xanimo-key.pgp | gpg --import
+    check_sig $CHECKSUMS
+    for i in "${!ALL_HOST_TRIPLETS[@]}"
+    do
+    :
+        TARGET_HOST_TRIPLET="${ALL_HOST_TRIPLETS[$i]}"
+        BUILD_PREFIX="`pwd`/lib"
+        echo $BUILD_PREFIX
+        SIG_STATUS=""
+        if [ ! -d "$BUILD_PREFIX" ]; then
+            mkdir -p $BUILD_PREFIX
+        fi
+        if [ ! -d "include" ]; then
+            mkdir -p include
+        fi
+        if [[ "$TARGET_HOST_TRIPLET" != *-mingw32 ]]; then
+            ARCHIVE=$FILE$TARGET_HOST_TRIPLET$EXTENSION
+            curl -L -O "$URL$ARCHIVE"
+            SIG_STATUS=$(grep "$ARCHIVE" "$CHECKSUMS" | sha256sum -c | grep OK)
+            if [ "$SIG_STATUS" == "$ARCHIVE: OK" ]; then
+                printf "$green> checksum looks good$reset\n"
             else
-                ARCHIVE=$FILE$TARGET_HOST_TRIPLET$EXTENSION
-                curl -L -O "$URL$ARCHIVE"
-                SIG_STATUS=$(grep "$ARCHIVE" "$CHECKSUMS" | sha256sum -c | grep OK)
-                if [ "$SIG_STATUS" == "$ARCHIVE: OK" ]; then
-                    printf "$green> checksum looks good$reset\n"
-                else
-                    printf "$red> checksum for this libdogecoin release is invalid! This is BAD and may mean the release has been tampered with. It is strongly recommended that you report this to the libdogecoin developers.$reset\n"
-                    exit 1;
-                fi
-                tar xvf $ARCHIVE "$FILE$TARGET_HOST_TRIPLET/lib/libdogecoin.a"
-                tar xvf $ARCHIVE "$FILE$TARGET_HOST_TRIPLET/include/libdogecoin.h"
-                mv $FILE$TARGET_HOST_TRIPLET/lib/libdogecoin.a `pwd`/lib/
-                mv $FILE$TARGET_HOST_TRIPLET/include/libdogecoin.h `pwd`/include/
-                rm -rf $FILE$TARGET_HOST_TRIPLET*
+                printf "$red> checksum for this libdogecoin release is invalid! This is BAD and may mean the release has been tampered with. It is strongly recommended that you report this to the libdogecoin developers.$reset\n"
+                exit 1;
             fi
-
-        done
-        rm $CHECKSUMS
-    fi
-
-    if [ "$TARGET_HOST_TRIPLET" == "x86_64-w64-mingw32" ] || [ "$TARGET_HOST_TRIPLET" == "i686-w64-mingw32" ]; then
-        ../combine.sh --target ./lib/libdogecoin.a \
-        --append "/usr/lib/gcc/$TARGET_HOST_TRIPLET/10-win32/libgcc.a \
-        /usr/$TARGET_HOST_TRIPLET/lib/libmoldname.a \
-        /usr/$TARGET_HOST_TRIPLET/lib/libmsvcrt.a \
-        /usr/$TARGET_HOST_TRIPLET/lib/libadvapi32.a \
-        /usr/$TARGET_HOST_TRIPLET/lib/libmingwex.a"
-        if [ "$plat" == "win32" ]; then
-            /mnt/c/Users/$(basename $(wslpath "$(wslvar USERPROFILE)"))/AppData/Local/Programs/Python/Python310-32/python.exe -m build \
-            -C--global-option=egg_info \
-            -C--global-option=--tag-build=0.1.0 \
-            -C--plat-name=$plat -w
-        else
-            /mnt/c/Users/$(basename $(wslpath "$(wslvar USERPROFILE)"))/AppData/Local/Programs/Python/Python310/python.exe -m build \
-            -C--global-option=egg_info \
-            -C--global-option=--tag-build=0.1.0 \
-            -C--plat-name=$plat -w
+            tar xvf $ARCHIVE "$FILE$TARGET_HOST_TRIPLET/lib/libdogecoin.a"
+            tar xvf $ARCHIVE "$FILE$TARGET_HOST_TRIPLET/include/libdogecoin.h"
+            mv $FILE$TARGET_HOST_TRIPLET/lib/libdogecoin.a lib/
+            mv $FILE$TARGET_HOST_TRIPLET/include/libdogecoin.h include/
+            rm -rf $FILE$TARGET_HOST_TRIPLET*
         fi
-    else
-        python -m pip install --upgrade pip pytest auditwheel cython setuptools wheel build
-        python -m build \
-        -C--global-option=egg_info \
-        -C--global-option=--tag-build=0.1.0 -w
-        TARGET_WHEEL=$(find . -maxdepth 2 -type f -regex ".*libdogecoin-.*.whl")
-        echo $TARGET_WHEEL
-        if [ "$OS" == "linux" ]; then
-            auditwheel repair --plat $ML $TARGET_WHEEL -w ../wheels
-        fi
-    fi
 
-    if [ "$TARGET_HOST_TRIPLET" == "x86_64-w64-mingw32" ] || [ "$TARGET_HOST_TRIPLET" == "i686-w64-mingw32" ]; then
-        if [ "$plat" == "win32" ]; then
-            p=/mnt/c/Users/$(basename $(wslpath "$(wslvar USERPROFILE)"))/AppData/Local/Programs/Python/Python310-32/python.exe
-        else
-            p=/mnt/c/Users/$(basename $(wslpath "$(wslvar USERPROFILE)"))/AppData/Local/Programs/Python/Python310/python.exe
-        fi
-    else
-        p=python
-    fi
+    done
+    rm $CHECKSUMS
+fi
+
+if [ "$TARGET_HOST_TRIPLET" != "x86_64-w64-mingw32" ] || [ "$TARGET_HOST_TRIPLET" != "i686-w64-mingw32" ]; then
+    pushd ./src
+    python -m pip install --upgrade pip pytest auditwheel cython setuptools wheel build
+    python -m build \
+    -C--global-option=egg_info \
+    -C--global-option=--tag-build=0.1.0 -w
+    # if [ "$OS" == "linux" ]; then
+    #     auditwheel repair --plat $ML $TARGET_WHEEL -w ../wheels
+    # fi
+    popd
+fi
+
+if [ "$TARGET_HOST_TRIPLET" != "x86_64-w64-mingw32" ] || [ "$TARGET_HOST_TRIPLET" != "i686-w64-mingw32" ]; then
+    pushd ./src
+    p=python
     TARGET_WHEEL=$(find . -maxdepth 2 -type f -regex ".*libdogecoin-.*")
     $p -m pip install --upgrade wheel pytest
     $p -m wheel unpack "$TARGET_WHEEL"
-    cp -r libdogecoin-*/* .
-    $p -m pytest
-
+    cp -r ../tests ./libdogecoin-0.1.0/
+    pushd ./libdogecoin-0.1.0
+        $p -m pytest
+    popd
     cp dist/* ../wheels
-
     rm -rf *.so *.pyd .pytest_cache __pycache__ tests/__pycache__ libdogecoin-*.egg-info/ libdogecoin-* dist/ build/ *.whl *.so *.c *.egg-info/
-
-popd
+    popd
+fi

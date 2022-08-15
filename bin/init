@@ -1,0 +1,88 @@
+#!/bin/bash
+set -e -o pipefail
+
+rm -rf *.c __pycache__ *.egg-info *.zip *.exe
+if [ ! -d "wheels" ]; then mkdir -p wheels; fi
+
+for i in "$@" 
+do
+    case $i in
+        -a=*|--arch=*) arch="${i#*=}";;
+        -h=*|--host=*) host="${i#*=}";;
+        *) error=1;;
+    esac
+done
+
+mkdir -p bin/$arch
+
+version=3.10.6
+url_base=https://www.python.org/ftp/python/$version/
+file=python-$version-embed-$arch.zip
+if [ $arch == "win32" ]; then
+    curl -L -O $url_base$file
+    echo "c152491a2a2e9822d95c1c8be4e30a35c56703b417276e1696e7d34480fc6160  $file" | sha256sum -c
+    unzip -o -j $file -d ./bin/$arch
+    rm $file
+    file=python-3.10.6.exe
+    curl -L -O $url_base$file
+    host=i686-w64-mingw32
+    plat=win32
+    nuget=pythonx86
+elif [ $arch == "amd64" ]; then
+    curl -L -O $url_base$file
+    echo "c5e3af5d40944d1dbb03740564378f168235e316a2b47c99dcfe46ac837db3d2  $file" | sha256sum -c
+    unzip -o -j $file -d ./bin/$arch
+    rm $file
+    host=x86_64-w64-mingw32
+    plat=win_amd64
+    nuget=python
+fi
+
+curl -L -O https://bootstrap.pypa.io/get-pip.py
+echo "5aefe6ade911d997af080b315ebcb7f882212d070465df544e1175ac2be519b4  get-pip.py" | sha256sum -c
+
+# _pth=`find . -maxdepth 3 -type f -regex ".*$arch/.*._pth"`
+_pth="./bin/$arch/python310._pth"
+if [ -f "$_pth" ]; then
+    sed -i "s/.*import site/import site/g" $_pth
+fi
+_pth="${_pth%/*}"
+p=$_pth/python.exe
+$p get-pip.py
+rm get-pip.py
+mkdir -p tmp
+
+# setup embedded python with missing include and libs directories:
+curl -L -O https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
+echo "a79f342e739fdb3903a92218767e7813e04930dff463621b6d2be2d468b84e05  nuget.exe" | sha256sum -c
+./nuget.exe install $nuget -ExcludeVersion -OutputDirectory ./tmp
+cp -r ./tmp/$nuget/tools/include/ ./tmp/$nuget/tools/libs/ ./bin/$arch/
+set PY_PIP="./bin/$arch\Scripts"
+set PY_LIBS="./bin/$arch\Lib;$arch\Lib\site-packages"
+
+# install wheel dependencies:
+$p -m pip install -r src/requirements.txt
+
+# fetch and link missing libs in libdogecoin.a
+$p fetch.py --host=$host
+rm *.asc
+libs=""
+for f in libs/$arch/*.a; do libs+=$f" "; done
+AR="$host-ar" sh ./combine.sh --target lib/libdogecoin.a --append "$libs"
+
+# build and test python wheel
+pushd ./src
+    rm -rf ./build ./dist ./libdogecoin.egg-info ./libdogecoin-0.1.0 libdogecoin.c .pytest_cache
+    .$p setup.py bdist_wheel --plat-name=$plat
+    # TARGET_WHEEL=$(find . -maxdepth 2 -type f -regex ".*libdogecoin-.*.whl")
+    TARGET_WHEEL=./dist/libdogecoin-0.1.0-cp310-cp310-$plat.whl
+    .$p -m pip install --upgrade wheel pytest
+    .$p -m wheel unpack "$TARGET_WHEEL"
+    cp -r ../tests ./libdogecoin-0.1.0/
+    pushd ./libdogecoin-0.1.0
+        ../.$p -m pytest
+    popd
+    cp $TARGET_WHEEL ../wheels
+popd
+
+rm -rf nuget.exe ./tmp

@@ -132,9 +132,12 @@ dmypy.json
 
 # libdogecoin archives
 src/libdogecoin-*
-src/include
-src/include/
 src/libdogecoin.c
 
 # Docker stuff
 logs/
+
+# mingw32 patch stuff
+bin/amd64
+bin/win32
+*.exe

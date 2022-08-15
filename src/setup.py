@@ -1,17 +1,17 @@
-from setuptools import setup, Extension, Command
+from setuptools import setup, Extension
 from Cython.Build import cythonize
 from Cython.Distutils import build_ext
 
 # set defaults
 version = "0.1.0"
        
-libdoge_extension = [Extension(
+libdogecoin_extension = [Extension(
     name=               "libdogecoin",
     language=           "c",
     sources=            ["libdogecoin.pyx"],
-    include_dirs=       ["include/"],
-    library_dirs =      ["lib/"],
-    extra_objects=      ["lib/libdogecoin.a"],
+    include_dirs=       ["../include/"],
+    library_dirs =      ["../lib/"],
+    extra_objects=      ["../lib/libdogecoin.a"],
 )]
 
 setup(
@@ -30,5 +30,5 @@ setup(
                                      "License :: OSI Approved :: MIT License",
                                      "Operating System :: POSIX :: Linux"],
     cmdclass=                       {'build_ext': build_ext},
-    ext_modules=                    cythonize(libdoge_extension, language_level = "3")
+    ext_modules=                    cythonize(libdogecoin_extension, language_level = "3")
 )

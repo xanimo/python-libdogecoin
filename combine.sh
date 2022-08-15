@@ -71,12 +71,18 @@ if has_param '--append' "$@"; then
     done
 fi
 
+AR=ar
+if [ "$AR" != "" ]; then
+    echo $AR
+fi
+
+
 case $OS in 
 "mac")
 libtool -static -o $TARGET_LIB $TARGET_LIB $LIBS
 ;;
-"linux") 
-ar -M << EOM 
+*) 
+$AR -M << EOM 
     OPEN $(echo $TARGET_LIB)
     $(echo -e $LIBS)
     SAVE

@@ -43,7 +43,7 @@ jobs:
             host: x86_64-w64-mingw32
             os: windows-latest
             arch: amd64
-            plat-name: win-amd64
+            plat-name: amd64
           - name: i686-win
             host: i686-w64-mingw32
             os: windows-latest
@@ -81,7 +81,7 @@ jobs:
         uses: Vampire/setup-wsl@v1.3.1
 
       - uses: actions/setup-python@v4
-        if: runner.os != 'Linux'
+        if: runner.os != 'Linux' && runner.os != 'Windows'
         name: Install Python
         with:
           python-version: '3.10'
@@ -89,12 +89,9 @@ jobs:
 
       - name: Build wheels for ${{ matrix.host }}
         if: runner.os == 'Windows'
-        # env: 
-        #   host: ${{ matrix.host }}
         run: |
-            mkdir -p wheels
-            ./build.sh --host=${{ matrix.host }}
-            cp src/dist/*.whl ./wheels
+            mkdir -p ./wheels
+            sh ./bin/init --arch=${{ matrix.plat-name }}
 
       - name: Build wheels for ${{ matrix.host }}
         if: matrix.host == 'x86_64-apple-darwin14'
@@ -102,18 +99,18 @@ jobs:
           host: ${{ matrix.host }}
         run: |
             mkdir -p wheels
+            python -m fetch --host=${{ matrix.host }}
             pushd src
-              cp ../fetch.py .
-              python -m fetch --host=${{ matrix.host }}
               python -m build \
               -C--global-option=egg_info \
               -C--global-option=--tag-build=0.1.0 -w
               TARGET_WHEEL=$(find . -maxdepth 2 -type f -regex ".*libdogecoin-.*")
               python -m pip install --upgrade wheel pytest
               wheel unpack "$TARGET_WHEEL"
-              cp -r libdogecoin-*/* .
-              python -m pytest
-              rm fetch.py 
+              cp -r ../tests ./libdogecoin-0.1.0/
+              pushd ./libdogecoin-0.1.0
+                  python -m pytest
+              popd
             popd
             cp src/dist/*.whl ./wheels
 
@@ -145,18 +142,18 @@ jobs:
         with:
           path: wheels/*.tar.gz
 
-  # upload_pypi:
-  #   needs: [build_wheels, build_sdist]
-  #   runs-on: ubuntu-latest
-  #   # upload to PyPI on every tag starting with 'v'
-  #   if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
-  #   steps:
-  #     - uses: actions/download-artifact@v2
-  #       with:
-  #         name: artifact
-  #         path: dist
+  upload_pypi:
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    # upload to PyPI on every tag starting with 'v'
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: artifact
+          path: dist
 
-  #     - uses: pypa/gh-action-pypi-publish@master
-  #       with:
-  #         user: __token__
-  #         password: ${{ secrets.pypi_password }}
+      - uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.pypi_password }}
