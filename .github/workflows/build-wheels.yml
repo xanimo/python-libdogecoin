@@ -76,9 +76,9 @@ jobs:
           --target artifact \
           --output type=local,dest=. .
 
-      - name: Setup WSL
-        if: runner.os == 'Windows'
-        uses: Vampire/setup-wsl@v1.3.1
+      # - name: Setup WSL
+      #   if: runner.os == 'Windows'
+      #   uses: Vampire/setup-wsl@v1.3.1
 
       - uses: actions/setup-python@v4
         if: runner.os != 'Linux' && runner.os != 'Windows'
@@ -87,11 +87,11 @@ jobs:
           python-version: '3.10'
       - run: pip install --upgrade cython setuptools build requests pytest
 
-      - name: Build wheels for ${{ matrix.host }}
-        if: runner.os == 'Windows'
-        run: |
-            mkdir -p ./wheels
-            sh ./bin/init --arch=${{ matrix.plat-name }}
+      # - name: Build wheels for ${{ matrix.host }}
+      #   if: runner.os == 'Windows'
+      #   run: |
+      #       mkdir -p ./wheels
+      #       sh ./bin/init --arch=${{ matrix.plat-name }}
 
       - name: Build wheels for ${{ matrix.host }}
         if: matrix.host == 'x86_64-apple-darwin14'
