@@ -65,6 +65,4 @@ elif host == "i686-pc-linux-gnu":
 
 print(host)
 
-
-
 # ./combine.sh --target lib/libdogecoin.a --append 

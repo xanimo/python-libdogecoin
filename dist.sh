@@ -17,18 +17,6 @@ config_env() {
             OS=linux
             TARGET_ARCH="arm64v8"
         ;;
-        "x86_64-w64-mingw32")
-            OS=linux
-            TARGET_ARCH="amd64"
-        ;;
-        "i686-w64-mingw32")
-            OS=linux
-            TARGET_ARCH="i386"
-        ;;
-        "x86_64-apple-darwin14")
-            OS=darwin
-            TARGET_ARCH="amd64"
-        ;;
         "x86_64-pc-linux-gnu")
             OS=linux
             TARGET_ARCH="amd64"
@@ -38,7 +26,7 @@ config_env() {
             TARGET_ARCH="i386"
         ;;
         "all")
-            ALL_HOST_TRIPLETS=("x86_64-pc-linux-gnu" "i686-pc-linux-gnu" "aarch64-linux-gnu" "arm-linux-gnueabihf" "x86_64-w64-mingw32" "i686-w64-mingw32")
+            ALL_HOST_TRIPLETS=("x86_64-pc-linux-gnu" "i686-pc-linux-gnu" "aarch64-linux-gnu" "arm-linux-gnueabihf")
         ;;
         *)
             ERROR=1
