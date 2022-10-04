@@ -140,3 +140,6 @@ libdogecoin.c
 # windows python stuff
 bin/amd64/*
 bin/win32/*
+tmp/*
+*.exe
+*.asc
