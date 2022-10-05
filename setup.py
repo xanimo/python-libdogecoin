@@ -3,7 +3,7 @@ from Cython.Build import cythonize
 from Cython.Distutils import build_ext
 
 # set defaults
-version = "0.1.0"
+version = "0.0.7"
        
 libdogecoin_extension = [Extension(
     name=               "libdogecoin",
