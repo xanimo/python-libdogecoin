@@ -1,3 +1,11 @@
+[project]
+name = "libdogecoin_py"
+requires-python = ">=3.7"
+classifiers= ["Programming Language :: Python :: 3",
+             "License :: OSI Approved :: MIT License",
+             "Operating System :: POSIX :: Linux"]
+description= "Python interface for the libdogecoin C library"
+dynamic= ["authors", "version", "readme", "maintainers"]
 [build-system]
 requires = [
     "pip >= 21.3.1",
@@ -8,3 +16,19 @@ requires = [
     "Cython >= 0.29.32"
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.cibuildwheel]
+test-requires = "pytest"
+test-command = "pytest {project}/tests"
+#before-build = ["python3 -m pip install requests", "python3 download_libdogecoin_release.py --release_version 0.1.0"]
+skip = ["cp37-win*", "cp38-macosx_*", "pp*", "*-musllinux*", "cp37-macosx_*"]
+test-skip = "*-macosx_arm64 *-macosx_universal2:arm64"
+[tool.cibuildwheel.linux]
+archs = ["x86_64", "i686" ,"aarch64"]
+#archs = "x86_64"
+[tool.cibuildwheel.macos]
+#archs =  ["universal2"]
+archs = ["x86_64"]
+[tool.cibuildwheel.windows]
+archs = ["AMD64", "x86"]
+

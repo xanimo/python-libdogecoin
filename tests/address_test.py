@@ -2,7 +2,7 @@
 
 import inspect
 import unittest
-import libdogecoin as l
+from libdogecoin_py import libdogecoin as l
 
 class TestAddressFunctions(unittest.TestCase):
 
