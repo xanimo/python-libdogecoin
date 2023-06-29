@@ -1,0 +1,4 @@
+cibuildwheel = v2.13.1
+pytest
+pylint
+

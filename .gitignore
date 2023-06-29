@@ -20,6 +20,7 @@ parts/
 sdist/
 var/
 wheels/
+wheelhouse/
 pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
@@ -131,7 +132,9 @@ dmypy.json
 .pyre/
 
 # libdogecoin archives
-libdogecoin-*
+libdogecoin-0*
+libdogecoin-1*
+libdogecoin-2*
 build-log.txt
 /include
 include/
@@ -140,3 +143,7 @@ libdogecoin.c
 # windows python stuff
 bin/amd64/*
 bin/win32/*
+
+# backup file
+*~
+\#*\#
